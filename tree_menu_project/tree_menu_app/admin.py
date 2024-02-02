@@ -1,3 +1,9 @@
 from django.contrib import admin
+from .models import TreeMenu
 
-# Register your models here.
+
+class MenuItemAdmin(admin.ModelAdmin):
+    list_display = ('title', 'parent', 'url', 'name')
+
+
+admin.site.register(TreeMenu, MenuItemAdmin)

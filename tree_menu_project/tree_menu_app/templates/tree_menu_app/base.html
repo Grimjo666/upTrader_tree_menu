@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% block title %}
+    <title>Home</title>
+    {% endblock %}
+
+    {% load menu_tags %}
+</head>
+<body>
+
+<div class="menu-container">
+    <a href="/">Главная</a>
+    {% block menu %}{% endblock %}
+</div>
+
+<!-- Ваш контент страницы может следовать после меню -->
+<div class="content">
+    {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>
