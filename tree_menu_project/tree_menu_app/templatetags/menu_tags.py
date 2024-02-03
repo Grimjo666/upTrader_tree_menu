@@ -1,7 +1,6 @@
 from django import template
 from tree_menu_app.models import TreeMenu
 from django.utils.html import mark_safe
-from django.urls import reverse
 
 register = template.Library()
 
@@ -9,66 +8,62 @@ register = template.Library()
 @register.simple_tag
 def draw_menu(menu_name, current_url):
     menu_items = TreeMenu.objects.filter(name=menu_name).select_related('parent').prefetch_related('children')
-    return mark_safe(render_menu(menu_items, current_url))
+
+    current_menu_item = menu_items.filter(url=current_url)  # активный текущий элемент меню
+
+    if not current_menu_item.exists():
+        current_menu_item = None
+    else:
+        current_menu_item = current_menu_item[0]  # если queryset не пустой, то достаём активный элемент меню
+
+    return mark_safe(render_menu(menu_items, current_menu_item))
 
 
-def render_menu(menu_items, current_url):
+def render_menu(menu_items, current_menu_item):
     menu_html = ''
-    tree_items_dict = {'no_parents': []}
-    url_dict = {}
-    for item in menu_items:
-        url_dict[item.url] = item
 
-        if item.parent is None:
-            tree_items_dict['no_parents'].append(item)
+    if current_menu_item:
+        children = current_menu_item.children.all()  # получаем детей активного элемента меню
 
-        else:
-            parent = item.parent
-            tree_items_dict[parent] = tree_items_dict.get(parent, [])
-            tree_items_dict[parent].append(item)
+        if current_menu_item.parent:  # если у активного элемента есть родитель
+            parents_or_root = get_parents_or_root(menu_items, current_menu_item)  # получаем родителей активного элем-та
+            menu_html = draw_tree_elements(parents_or_root, children, current_menu_item=current_menu_item)
 
+        else:  # если родителя нет
+            root_items = get_parents_or_root(menu_items)  # получаем корни
+            menu_html = draw_tree_elements(root_items, children)  # передаём корни и детей и получаем html меню
 
-    print(url_dict)
-    print(tree_items_dict)
-    tmp_html = None
-    while True:
-        if current_url not in url_dict:
-            item_key = 'no_parents'
-        else:
-            item_key = url_dict[current_url]
-
-        if not tmp_html:
-            tmp_html = draw_html_list(tree_items_dict[item_key])
-
-        if tree_items_dict[item_key][0].parent:  # Если у текущего уровня вложенности есть родитель
-            parent = [tree_items_dict[item_key][0].parent]
-            tmp_html = draw_html_list(parent, tmp_html)  # Добавляем ранее полученный Html список в новый список
-
-            if tree_items_dict[item_key][0].parent.parent:  # Если у текущего уровня вложенности есть дед
-                current_url = tree_items_dict[item_key][0].parent.parent.url
-
-            else:
-                menu_html += tmp_html
-                break
-
-        else:  # Если у текущего уровня вложенности нет родителя, то завершаем цикл
-            menu_html += tmp_html
-            break
-
-
-        # print(menu_html)
-        # elif item.parent.url == current_url:
-        #     menu_html += f'<li><a href="{item.url}">{item.title}</a></li>'
-        #     menu_html += render_menu(item.children.all(), current_url)
+    else:  # если нет активного элемента меню значит мны находимся в корне меню
+        parents = get_parents_or_root(menu_items)
+        menu_html = draw_tree_elements(parents)
 
     return menu_html
 
 
-def draw_html_list(items, html_text=None):
+def get_parents_or_root(queryset, item=None):
+    if item and item.parent.parent:
+        return item.parent.parent.children.all()
+    return queryset.filter(parent=None)
+
+
+def draw_tree_elements(parents, children=None, current_menu_item=None) -> str:
     html = '<ul>'
-    for item in items:
-        html += f'<li><a href="{item.url}">{item.title}</a></li>'
-        if html_text:
-            html += html_text
+    for parent in parents:  # проходимся по родителям
+        html += f'<li><a href="{parent.url}">{parent.title}</a></li>'
+
+        if children:
+
+            if children[0] in parent.children.all():  # берём любого ребёнка и проверяем есть ли он у текущего родителя
+                html += draw_tree_elements(children)  # рисуем ul список для детей
+
+            # если передан активный элемент меню и кто то из детей является его ребёнком
+            elif current_menu_item and children[0] in current_menu_item.children.all():
+
+                # если текущий элемент является ребёнком родителя
+                if current_menu_item in parent.children.all():
+                    # получаем братьев активного элемента меню
+                    brothers_of_current_parent = current_menu_item.parent.children.all()
+                    html += draw_tree_elements(brothers_of_current_parent, children)
+
     html += '</ul>'
     return html

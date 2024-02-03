@@ -2,18 +2,14 @@
 {% load menu_tags %}
 
 {% block title %}
-    <title>Home</title>
+    <title>BMW</title>
 {% endblock %}
 
 {% block menu %}
-{% draw_menu 'main_menu' request.path %}
-
-<br><br><br>
-
 {% draw_menu 'cars_menu' request.path %}
 {% endblock %}
 
 
 {% block content %}
-    <h1>Its index page</h1>
+    <h1>Its BMW page</h1>
 {% endblock %}
